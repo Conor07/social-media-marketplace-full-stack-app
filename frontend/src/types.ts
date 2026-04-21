@@ -2,6 +2,8 @@ export interface Post {
   id: number;
   title: string;
   content: string;
+  userId: string;
+  likes: string[];
 }
 
 export interface CartItem {
@@ -10,6 +12,7 @@ export interface CartItem {
   description: string;
   price: number;
   quantity: number;
+  userId: string;
 }
 
 export interface ItemToSell {
@@ -18,4 +21,5 @@ export interface ItemToSell {
   description: string;
   price: number;
   quantity: number;
+  userId: string;
 }

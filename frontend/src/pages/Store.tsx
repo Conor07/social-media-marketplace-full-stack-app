@@ -6,14 +6,23 @@ import {
   deleteCartItemThunk,
   fetchCartItemsThunk,
   selectCartItems,
-  updateCartItemThunk,
+
 } from "../features/buy/cartSlice";
-import type { CartItem } from "../types";
+import type { ItemToSell } from "../types";
+import { getAllAvailableItemsToSell } from "../api/itemsToSellApi";
 
 type StoreProps = {};
 
 const Store: React.FC<StoreProps> = ({}) => {
   const dispatch = useAppDispatch();
+
+  const [availableItems, setAvailableItems] = useState<ItemToSell[]>([]);
+
+  const [loadingItems, setLoadingItems] = useState(false);
+
+  const [itemError, setItemError] = useState<string | null>(null);
+
+  const [quantities, setQuantities] = useState<Record<number, number>>({});
 
   const {
     cartItems,
@@ -21,135 +30,147 @@ const Store: React.FC<StoreProps> = ({}) => {
     fetchError: cartFetchError,
   } = useSelector(selectCartItems);
 
-  const [cartForm, setCartForm] = useState<CartItem>({
-    id: 0,
-    name: "",
-    description: "",
-    price: 0,
-    quantity: 0,
-  });
 
   useEffect(() => {
     dispatch(fetchCartItemsThunk());
+
+    loadAvailableItems();
   }, [dispatch]);
 
-  const handleCartChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-    setCartForm({ ...cartForm, [e.target.name]: e.target.value });
-  const handleAddCart = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const loadAvailableItems = async () => {
+    setLoadingItems(true);
+
+    setItemError(null);
+    try {
+      const items = await getAllAvailableItemsToSell();
+
+      setAvailableItems(items);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to fetch items";
+
+      setItemError(message);
+    } finally {
+      setLoadingItems(false);
+    }
+  };
+
+  const handleAddToCart = (item: ItemToSell) => {
+    const quantity = quantities[item.id] || 1;
+
     dispatch(
       createCartItemThunk({
-        id: 0, // ID will be set by backend
-        name: cartForm.name,
-        description: cartForm.description,
-        price: Number(cartForm.price),
-        quantity: Number(cartForm.quantity),
+        id: 0,
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        quantity,
+        userId: "",
       }),
     );
-    setCartForm({ id: 0, name: "", description: "", price: 0, quantity: 0 });
+
+    setQuantities({ ...quantities, [item.id]: 1 });
   };
-  const handleUpdateCart = (item: CartItem) => {
-    setCartForm({
-      id: item.id,
-      name: item.name,
-      description: item.description,
-      price: item.price,
-      quantity: item.quantity,
+
+  const handleQuantityChange = (
+    itemId: number,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    setQuantities({
+      ...quantities,
+      [itemId]: Math.max(1, parseInt(e.target.value) || 1),
     });
   };
-  const handleSubmitUpdateCart = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    dispatch(
-      updateCartItemThunk({
-        id: Number(cartForm.id),
-        name: cartForm.name,
-        description: cartForm.description,
-        price: Number(cartForm.price),
-        quantity: Number(cartForm.quantity),
-      }),
-    );
-    setCartForm({ id: 0, name: "", description: "", price: 0, quantity: 0 });
-  };
+
 
   const handleDeleteCart = (id: number) => dispatch(deleteCartItemThunk(id));
 
   return (
     <div className="mb-4">
-      <h2>Cart Items: </h2>
-      <form
-        onSubmit={cartForm.id ? handleSubmitUpdateCart : handleAddCart}
-        style={{ marginBottom: 8 }}
-      >
-        <input
-          name="name"
-          placeholder="Name"
-          value={cartForm.name}
-          onChange={handleCartChange}
-          required
-        />
-        <input
-          name="description"
-          placeholder="Description"
-          value={cartForm.description}
-          onChange={handleCartChange}
-          required
-        />
-        <input
-          name="price"
-          type="number"
-          placeholder="Price"
-          value={cartForm.price}
-          onChange={handleCartChange}
-          required
-        />
-        <input
-          name="quantity"
-          type="number"
-          placeholder="Quantity"
-          value={cartForm.quantity}
-          onChange={handleCartChange}
-          required
-        />
-        {cartForm.id ? (
-          <>
-            <button type="submit">Update Cart Item</button>
-            <button
-              type="button"
-              onClick={() =>
-                setCartForm({
-                  id: 0,
-                  name: "",
-                  description: "",
-                  price: 0,
-                  quantity: 0,
-                })
-              }
-            >
-              Cancel
-            </button>
-          </>
-        ) : (
-          <button type="submit">Add Cart Item</button>
+      <div>
+        <h2>Available Items:</h2>
+        {loadingItems && <p>Loading items...</p>}
+
+        {itemError && <p style={{ color: "red" }}>Error: {itemError}</p>}
+
+        {availableItems.length === 0 && !loadingItems && (
+          <p>No items available.</p>
         )}
-      </form>
-      {cartFetchStatus === "loading" && <p>Loading cart items...</p>}
-      {cartFetchStatus === "failed" && (
-        <p style={{ color: "red" }}>Error: {cartFetchError}</p>
-      )}
-      {cartFetchStatus === "succeeded" && cartItems.length === 0 && (
-        <p>No cart items found.</p>
-      )}
-      {cartFetchStatus === "succeeded" &&
-        cartItems.map((item) => (
-          <div key={item.id}>
+
+        {availableItems.map((item) => (
+          <div
+            key={item.id}
+            style={{
+              border: "1px solid #ccc",
+              padding: "10px",
+              marginBottom: "10px",
+              borderRadius: "4px",
+            }}
+          >
             <h3>{item.name}</h3>
+
             <p>{item.description}</p>
+
             <p>Price: ${item.price}</p>
-            <p>Quantity: {item.quantity}</p>
-            <button onClick={() => handleUpdateCart(item)}>Edit</button>
-            <button onClick={() => handleDeleteCart(item.id)}>Delete</button>
+
+            <p>Available: {item.quantity}</p>
+
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <input
+                type="number"
+                min="1"
+                max={item.quantity}
+                value={quantities[item.id] || 1}
+                onChange={(e) => handleQuantityChange(item.id, e)}
+                style={{ width: "60px" }}
+              />
+
+              <button onClick={() => handleAddToCart(item)}>Add to Cart</button>
+            </div>
           </div>
         ))}
+      </div>
+
+      <hr style={{ marginTop: "20px" }} />
+
+      <div>
+        <h2>Your Cart:</h2>
+
+        {cartFetchStatus === "loading" && <p>Loading cart items...</p>}
+
+        {cartFetchStatus === "failed" && (
+          <p style={{ color: "red" }}>Error: {cartFetchError}</p>
+        )}
+
+        {cartFetchStatus === "succeeded" && cartItems.length === 0 && (
+          <p>Your cart is empty.</p>
+        )}
+
+        {cartFetchStatus === "succeeded" &&
+          cartItems.map((item) => (
+            <div
+              key={item.id}
+              style={{
+                border: "1px solid #ccc",
+                padding: "10px",
+                marginBottom: "10px",
+                borderRadius: "4px",
+              }}
+            >
+              <h3>{item.name}</h3>
+
+              <p>{item.description}</p>
+
+              <p>Price: ${item.price}</p>
+
+              <p>Quantity: {item.quantity}</p>
+
+              <button onClick={() => handleDeleteCart(item.id)}>
+                Remove from Cart
+              </button>
+            </div>
+          ))}
+      </div>
     </div>
   );
 };

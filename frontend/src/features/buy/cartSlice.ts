@@ -16,8 +16,11 @@ export const fetchCartItemsThunk = createAsyncThunk(
       const items = await getCartItems();
 
       return items;
-    } catch (error: any) {
-      return rejectWithValue(error.message);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to fetch cart items";
+
+      return rejectWithValue(message);
     }
   },
 );
@@ -29,8 +32,11 @@ export const createCartItemThunk = createAsyncThunk(
       const newItem = await createCartItem(item);
 
       return newItem;
-    } catch (error: any) {
-      return rejectWithValue(error.message);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to create cart item";
+
+      return rejectWithValue(message);
     }
   },
 );
@@ -42,8 +48,11 @@ export const updateCartItemThunk = createAsyncThunk(
       const updated = await updateCartItem(item);
 
       return updated;
-    } catch (error: any) {
-      return rejectWithValue(error.message);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to update cart item";
+
+      return rejectWithValue(message);
     }
   },
 );
@@ -55,8 +64,11 @@ export const deleteCartItemThunk = createAsyncThunk(
       await deleteCartItem(id);
 
       return id;
-    } catch (error: any) {
-      return rejectWithValue(error.message);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to delete cart item";
+
+      return rejectWithValue(message);
     }
   },
 );
@@ -91,7 +103,6 @@ export const cartSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // Fetch
       .addCase(fetchCartItemsThunk.pending, (state) => {
         state.fetchStatus = "loading";
 
@@ -110,7 +121,6 @@ export const cartSlice = createSlice({
 
         state.fetchError = action.payload as string;
       })
-      // Create
       .addCase(createCartItemThunk.pending, (state) => {
         state.createStatus = "loading";
 
@@ -129,7 +139,6 @@ export const cartSlice = createSlice({
 
         state.createError = action.payload as string;
       })
-      // Update
       .addCase(updateCartItemThunk.pending, (state) => {
         state.updateStatus = "loading";
 
@@ -152,7 +161,6 @@ export const cartSlice = createSlice({
 
         state.updateError = action.payload as string;
       })
-      // Delete
       .addCase(deleteCartItemThunk.pending, (state) => {
         state.deleteStatus = "loading";
 

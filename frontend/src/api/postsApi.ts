@@ -1,75 +1,44 @@
+import axios from "axios";
 import type { Post } from "../types";
 
 export const getPosts = async (): Promise<Post[]> => {
-  const response = await fetch("/api/posts");
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch posts");
-  }
-
-  return response.json();
+  const res = await axios.get("/posts");
+  return res.data;
 };
 
 export const createPost = async (post: Post): Promise<Post> => {
-  const response = await fetch("/api/posts", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(post),
-  });
-
-  // Get error message returned by api:
-  if (
-    response.status === 400 &&
-    response.headers.get("Content-Type")?.includes("application/json")
-  ) {
-    const errorData = await response.json();
-
-    throw new Error(errorData.error);
-  }
-
-  if (!response.ok) {
+  try {
+    const res = await axios.post("/posts", post);
+    return res.data;
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.status === 400) {
+      throw new Error(err.response.data?.error || "Failed to create post");
+    }
     throw new Error("Failed to create post");
   }
-
-  return response.json();
 };
 
 export const updatePost = async (post: Post): Promise<Post> => {
-  const response = await fetch(`/api/posts/${post.id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(post),
-  });
-
-  // Get error message returned by api:
-  if (
-    response.status === 400 &&
-    response.headers.get("Content-Type")?.includes("application/json")
-  ) {
-    const errorData = await response.json();
-
-    throw new Error(errorData.error);
-  }
-
-  if (!response.ok) {
+  try {
+    const res = await axios.put(`/posts/${post.id}`, post);
+    return res.data;
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.status === 400) {
+      throw new Error(err.response.data?.error || "Failed to update post");
+    }
     throw new Error("Failed to update post");
   }
-
-  return response.json();
 };
 
 export const deletePost = async (id: number): Promise<void> => {
-  const response = await fetch(`/api/posts/${id}`, {
-    method: "DELETE",
-  });
+  await axios.delete(`/posts/${id}`);
+};
 
-  if (!response.ok) {
-    throw new Error("Failed to delete post");
-  }
+export const likePost = async (
+  id: number,
+): Promise<{ liked: boolean; likes: number }> => {
+  const res = await axios.post(`/posts/${id}/like`);
+  return res.data;
 };
 
 export const postsApi = {

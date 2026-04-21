@@ -7,6 +7,7 @@ import {
   createPost,
   updatePost,
   deletePost,
+  likePost,
 } from "../../api/postsApi";
 
 export const fetchPostsThunk = createAsyncThunk(
@@ -16,34 +17,43 @@ export const fetchPostsThunk = createAsyncThunk(
       const posts = await getPosts();
 
       return posts;
-    } catch (error: any) {
-      return rejectWithValue(error.message);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to fetch posts";
+
+      return rejectWithValue(message);
     }
   },
 );
 
 export const createPostThunk = createAsyncThunk(
   "posts/createPost",
-  async (post: Post, { rejectWithValue }) => {
+  async (post: Omit<Post, "userId" | "likes">, { rejectWithValue }) => {
     try {
-      const newPost = await createPost(post);
+      const newPost = await createPost(post as Post);
 
       return newPost;
-    } catch (error: any) {
-      return rejectWithValue(error.message);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to create post";
+
+      return rejectWithValue(message);
     }
   },
 );
 
 export const updatePostThunk = createAsyncThunk(
   "posts/updatePost",
-  async (post: Post, { rejectWithValue }) => {
+  async (post: Omit<Post, "userId" | "likes">, { rejectWithValue }) => {
     try {
-      const updated = await updatePost(post);
+      const updated = await updatePost(post as Post);
 
       return updated;
-    } catch (error: any) {
-      return rejectWithValue(error.message);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to update post";
+
+      return rejectWithValue(message);
     }
   },
 );
@@ -55,8 +65,27 @@ export const deletePostThunk = createAsyncThunk(
       await deletePost(id);
 
       return id;
-    } catch (error: any) {
-      return rejectWithValue(error.message);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to delete post";
+
+      return rejectWithValue(message);
+    }
+  },
+);
+
+export const likePostThunk = createAsyncThunk(
+  "posts/likePost",
+  async (id: number, { rejectWithValue }) => {
+    try {
+      const result = await likePost(id);
+
+      return { id, ...result };
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to like/unlike post";
+
+      return rejectWithValue(message);
     }
   },
 );
@@ -91,7 +120,6 @@ export const postsSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // Fetch posts
       .addCase(fetchPostsThunk.pending, (state) => {
         state.fetchStatus = "loading";
 
@@ -110,7 +138,6 @@ export const postsSlice = createSlice({
 
         state.fetchError = action.payload as string;
       })
-      // Create post
       .addCase(createPostThunk.pending, (state) => {
         state.createStatus = "loading";
 
@@ -129,7 +156,6 @@ export const postsSlice = createSlice({
 
         state.createError = action.payload as string;
       })
-      // Update post
       .addCase(updatePostThunk.pending, (state) => {
         state.updateStatus = "loading";
 
@@ -150,7 +176,6 @@ export const postsSlice = createSlice({
 
         state.updateError = action.payload as string;
       })
-      // Delete post
       .addCase(deletePostThunk.pending, (state) => {
         state.deleteStatus = "loading";
 
@@ -170,6 +195,24 @@ export const postsSlice = createSlice({
         state.deleteStatus = "failed";
 
         state.deleteError = action.payload as string;
+      })
+      .addCase(likePostThunk.fulfilled, (state, action) => {
+        const idx = state.posts.findIndex((p) => p.id === action.payload.id);
+        if (idx !== -1) {
+          const userId = JSON.parse(
+            localStorage.getItem("user") || "{}",
+          ).userId;
+
+          if (action.payload.liked) {
+            if (!state.posts[idx].likes.includes(userId)) {
+              state.posts[idx].likes.push(userId);
+            }
+          } else {
+            state.posts[idx].likes = state.posts[idx].likes.filter(
+              (uid) => uid !== userId,
+            );
+          }
+        }
       });
   },
 });
