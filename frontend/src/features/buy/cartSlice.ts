@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 import type { RootState } from "../../app/store";
-import type { CartItem } from "../../types";
+import type { CartItem, PaginationMeta } from "../../types";
 import {
   getCartItems,
   createCartItem,
@@ -9,13 +9,12 @@ import {
   deleteCartItem,
 } from "../../api/cartApi";
 
-export const fetchCartItemsThunk = createAsyncThunk(
+export const fetchCartItemsThunk = createAsyncThunk<any, number | undefined>(
   "cart/fetchCartItems",
-  async (_, { rejectWithValue }) => {
+  async (page = 1, { rejectWithValue }) => {
     try {
-      const items = await getCartItems();
-
-      return items;
+      const response = await getCartItems(page);
+      return response;
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Failed to fetch cart items";
@@ -75,6 +74,7 @@ export const deleteCartItemThunk = createAsyncThunk(
 
 interface CartState {
   cartItems: CartItem[];
+  pagination: PaginationMeta;
   fetchStatus: "idle" | "loading" | "succeeded" | "failed";
   fetchError: string | null;
   createStatus: "idle" | "loading" | "succeeded" | "failed";
@@ -85,8 +85,18 @@ interface CartState {
   deleteError: string | null;
 }
 
+const initialPagination: PaginationMeta = {
+  page: 1,
+  limit: 5,
+  total: 0,
+  totalPages: 0,
+  hasNextPage: false,
+  hasPreviousPage: false,
+};
+
 const initialState: CartState = {
   cartItems: [],
+  pagination: initialPagination,
   fetchStatus: "idle",
   fetchError: null,
   createStatus: "idle",
@@ -100,7 +110,11 @@ const initialState: CartState = {
 export const cartSlice = createSlice({
   name: "cart",
   initialState,
-  reducers: {},
+  reducers: {
+    setCurrentPage: (state, action: PayloadAction<number>) => {
+      state.pagination.page = action.payload;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchCartItemsThunk.pending, (state) => {
@@ -110,10 +124,11 @@ export const cartSlice = createSlice({
       })
       .addCase(
         fetchCartItemsThunk.fulfilled,
-        (state, action: PayloadAction<CartItem[]>) => {
+        (state, action: PayloadAction<any>) => {
           state.fetchStatus = "succeeded";
 
-          state.cartItems = action.payload;
+          state.cartItems = action.payload.data;
+          state.pagination = action.payload.pagination;
         },
       )
       .addCase(fetchCartItemsThunk.rejected, (state, action) => {
@@ -185,5 +200,7 @@ export const cartSlice = createSlice({
 });
 
 export const selectCartItems = (state: RootState) => state.cart;
+
+export const { setCurrentPage } = cartSlice.actions;
 
 export default cartSlice.reducer;

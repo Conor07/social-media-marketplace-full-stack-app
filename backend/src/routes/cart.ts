@@ -18,7 +18,31 @@ router.get(
   "/",
   authenticateToken,
   (req: AuthenticatedRequest, res: Response) => {
-    res.json(CART.filter((item) => item.userId === req.user!.userId));
+    const userCart = CART.filter((item) => item.userId === req.user!.userId);
+
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+
+    const limit = 5;
+
+    const start = (page - 1) * limit;
+
+    const paginatedItems = userCart.slice(start, start + limit);
+
+    const total = userCart.length;
+
+    const totalPages = Math.ceil(total / limit);
+
+    res.json({
+      data: paginatedItems,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    });
   },
 );
 

@@ -26,13 +26,96 @@ const INITIAL_POSTS: Array<{
     userId: "user-2",
     likes: [],
   },
+  {
+    id: 3,
+    title: "Amazing New Product",
+    content:
+      "Check out this incredible new product I found! Perfect for everyday use.",
+    userId: "user-1",
+    likes: ["user-2"],
+  },
+  {
+    id: 4,
+    title: "Tips for Getting Started",
+    content: "Here are my top 5 tips for beginners. Hope this helps!",
+    userId: "user-3",
+    likes: ["user-1", "user-2"],
+  },
+  {
+    id: 5,
+    title: "Community Spotlight",
+    content:
+      "Shoutout to all the amazing members of this marketplace. Keep being awesome!",
+    userId: "user-2",
+    likes: ["user-1"],
+  },
+  {
+    id: 6,
+    title: "Weekly Recommendations",
+    content: "These are my favorite finds from this week. Worth checking out!",
+    userId: "user-3",
+    likes: [],
+  },
+  {
+    id: 7,
+    title: "How to Maximize Sales",
+    content:
+      "I've learned a lot about what works. Let me share my strategy with you.",
+    userId: "user-4",
+    likes: ["user-1", "user-3"],
+  },
+  {
+    id: 8,
+    title: "Tutorial: Getting the Best Deals",
+    content: "Follow these steps to find the best bargains on the marketplace.",
+    userId: "user-1",
+    likes: ["user-2", "user-3", "user-4"],
+  },
+  {
+    id: 9,
+    title: "Success Story",
+    content: "I started small and now I'm making great profit. You can too!",
+    userId: "user-2",
+    likes: ["user-1"],
+  },
+  {
+    id: 10,
+    title: "New Features Announcement",
+    content: "Exciting updates coming to the platform next month. Stay tuned!",
+    userId: "user-5",
+    likes: ["user-1", "user-2", "user-3"],
+  },
 ];
 
 router.get(
   "/",
   authenticateToken,
   (req: AuthenticatedRequest, res: Response) => {
-    res.json(INITIAL_POSTS);
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+
+    const limit = 5;
+
+    const sortedPosts = [...INITIAL_POSTS].sort((a, b) => b.id - a.id);
+
+    const start = (page - 1) * limit;
+
+    const paginatedPosts = sortedPosts.slice(start, start + limit);
+
+    const total = sortedPosts.length;
+
+    const totalPages = Math.ceil(total / limit);
+
+    res.json({
+      data: paginatedPosts,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    });
   },
 );
 

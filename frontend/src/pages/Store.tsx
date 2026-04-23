@@ -6,54 +6,39 @@ import {
   deleteCartItemThunk,
   fetchCartItemsThunk,
   selectCartItems,
-
 } from "../features/buy/cartSlice";
+import {
+  fetchItemsToSellThunk,
+  selectItemsToSell,
+} from "../features/sell/itemsSlice";
 import type { ItemToSell } from "../types";
-import { getAllAvailableItemsToSell } from "../api/itemsToSellApi";
 
 type StoreProps = {};
 
 const Store: React.FC<StoreProps> = ({}) => {
   const dispatch = useAppDispatch();
 
-  const [availableItems, setAvailableItems] = useState<ItemToSell[]>([]);
-
-  const [loadingItems, setLoadingItems] = useState(false);
-
-  const [itemError, setItemError] = useState<string | null>(null);
-
   const [quantities, setQuantities] = useState<Record<number, number>>({});
 
   const {
     cartItems,
+    pagination: cartPagination,
     fetchStatus: cartFetchStatus,
     fetchError: cartFetchError,
   } = useSelector(selectCartItems);
 
+  const {
+    itemsToSell: availableItems,
+    availableItemsPagination,
+    fetchStatus: availableItemsFetchStatus,
+    fetchError: availableItemsFetchError,
+  } = useSelector(selectItemsToSell);
 
   useEffect(() => {
     dispatch(fetchCartItemsThunk());
 
-    loadAvailableItems();
+    dispatch(fetchItemsToSellThunk());
   }, [dispatch]);
-
-  const loadAvailableItems = async () => {
-    setLoadingItems(true);
-
-    setItemError(null);
-    try {
-      const items = await getAllAvailableItemsToSell();
-
-      setAvailableItems(items);
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : "Failed to fetch items";
-
-      setItemError(message);
-    } finally {
-      setLoadingItems(false);
-    }
-  };
 
   const handleAddToCart = (item: ItemToSell) => {
     const quantity = quantities[item.id] || 1;
@@ -67,7 +52,9 @@ const Store: React.FC<StoreProps> = ({}) => {
         quantity,
         userId: "",
       }),
-    );
+    ).then(() => {
+      dispatch(fetchCartItemsThunk());
+    });
 
     setQuantities({ ...quantities, [item.id]: 1 });
   };
@@ -82,59 +69,122 @@ const Store: React.FC<StoreProps> = ({}) => {
     });
   };
 
+  const handleDeleteCart = (id: number) => {
+    dispatch(deleteCartItemThunk(id)).then(() => {
+      dispatch(fetchCartItemsThunk());
+    });
+  };
 
-  const handleDeleteCart = (id: number) => dispatch(deleteCartItemThunk(id));
+  const handlePreviousAvailablePage = () => {
+    if (availableItemsPagination.hasPreviousPage) {
+      const newPage = availableItemsPagination.page - 1;
+
+      dispatch(fetchItemsToSellThunk(newPage));
+    }
+  };
+
+  const handleNextAvailablePage = () => {
+    if (availableItemsPagination.hasNextPage) {
+      const newPage = availableItemsPagination.page + 1;
+
+      dispatch(fetchItemsToSellThunk(newPage));
+    }
+  };
+
+  const handlePreviousCartPage = () => {
+    if (cartPagination.hasPreviousPage) {
+      const newPage = cartPagination.page - 1;
+
+      dispatch(fetchCartItemsThunk(newPage));
+    }
+  };
+
+  const handleNextCartPage = () => {
+    if (cartPagination.hasNextPage) {
+      const newPage = cartPagination.page + 1;
+
+      dispatch(fetchCartItemsThunk(newPage));
+    }
+  };
 
   return (
-    <div className="mb-4">
-      <div>
-        <h2>Available Items:</h2>
-        {loadingItems && <p>Loading items...</p>}
+    <div className="mb-4 flex flex-col items-center p-4 min-h-screen bg-gray-100 gap-4">
+      <div className="w-full">
+        <h2 className="text-2xl">Available Items:</h2>
+        {availableItemsFetchStatus === "loading" && <p>Loading items...</p>}
 
-        {itemError && <p style={{ color: "red" }}>Error: {itemError}</p>}
-
-        {availableItems.length === 0 && !loadingItems && (
-          <p>No items available.</p>
+        {availableItemsFetchStatus === "failed" && (
+          <p style={{ color: "red" }}>Error: {availableItemsFetchError}</p>
         )}
 
-        {availableItems.map((item) => (
-          <div
-            key={item.id}
-            style={{
-              border: "1px solid #ccc",
-              padding: "10px",
-              marginBottom: "10px",
-              borderRadius: "4px",
-            }}
-          >
-            <h3>{item.name}</h3>
+        {availableItemsFetchStatus === "succeeded" &&
+          availableItems.length === 0 && <p>No items available.</p>}
 
-            <p>{item.description}</p>
+        {availableItemsFetchStatus === "succeeded" &&
+          Array.isArray(availableItems) &&
+          availableItems.map((item) => (
+            <div
+              key={item.id}
+              className="flex flex-col p-4 w-full border border-gray-400 rounded bg-white mb-4"
+            >
+              <h3 className="text-xl">{item.name}</h3>
 
-            <p>Price: ${item.price}</p>
+              <p>{item.description}</p>
 
-            <p>Available: {item.quantity}</p>
+              <p>Price: ${item.price}</p>
 
-            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-              <input
-                type="number"
-                min="1"
-                max={item.quantity}
-                value={quantities[item.id] || 1}
-                onChange={(e) => handleQuantityChange(item.id, e)}
-                style={{ width: "60px" }}
-              />
+              <p>Available: {item.quantity}</p>
 
-              <button onClick={() => handleAddToCart(item)}>Add to Cart</button>
+              <div className="flex items-center gap-4 mt-2">
+                <input
+                  type="number"
+                  min="1"
+                  max={item.quantity}
+                  value={quantities[item.id] || 1}
+                  onChange={(e) => handleQuantityChange(item.id, e)}
+                  className="w-16 p-2 border border-gray-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+
+                <button
+                  onClick={() => handleAddToCart(item)}
+                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 cursor-pointer"
+                >
+                  Add to Cart
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+
+        {availableItemsFetchStatus === "succeeded" &&
+          availableItems.length > 0 && (
+            <div className="mt-8 flex gap-4 justify-center items-center">
+              <button
+                onClick={handlePreviousAvailablePage}
+                disabled={!availableItemsPagination.hasPreviousPage}
+                className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Previous
+              </button>
+              <span className="text-gray-700">
+                Page {availableItemsPagination.page} of{" "}
+                {availableItemsPagination.totalPages} (Total:{" "}
+                {availableItemsPagination.total})
+              </span>
+              <button
+                onClick={handleNextAvailablePage}
+                disabled={!availableItemsPagination.hasNextPage}
+                className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Next
+              </button>
+            </div>
+          )}
       </div>
 
-      <hr style={{ marginTop: "20px" }} />
+      <hr className="w-full my-8" />
 
-      <div>
-        <h2>Your Cart:</h2>
+      <div className="w-full">
+        <h2 className="text-2xl">Your Cart:</h2>
 
         {cartFetchStatus === "loading" && <p>Loading cart items...</p>}
 
@@ -147,17 +197,13 @@ const Store: React.FC<StoreProps> = ({}) => {
         )}
 
         {cartFetchStatus === "succeeded" &&
+          Array.isArray(cartItems) &&
           cartItems.map((item) => (
             <div
               key={item.id}
-              style={{
-                border: "1px solid #ccc",
-                padding: "10px",
-                marginBottom: "10px",
-                borderRadius: "4px",
-              }}
+              className="flex flex-col p-4 w-full border border-gray-400 rounded bg-white mb-4"
             >
-              <h3>{item.name}</h3>
+              <h3 className="text-xl">{item.name}</h3>
 
               <p>{item.description}</p>
 
@@ -165,11 +211,39 @@ const Store: React.FC<StoreProps> = ({}) => {
 
               <p>Quantity: {item.quantity}</p>
 
-              <button onClick={() => handleDeleteCart(item.id)}>
-                Remove from Cart
-              </button>
+              <div className="flex items-center gap-4 mt-2">
+                <button
+                  onClick={() => handleDeleteCart(item.id)}
+                  className="h-full m-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 cursor-pointer"
+                >
+                  Remove from Cart
+                </button>
+              </div>
             </div>
           ))}
+
+        {cartFetchStatus === "succeeded" && cartItems.length > 0 && (
+          <div className="mt-8 flex gap-4 justify-center items-center">
+            <button
+              onClick={handlePreviousCartPage}
+              disabled={!cartPagination.hasPreviousPage}
+              className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer"
+            >
+              Previous
+            </button>
+            <span className="text-gray-700">
+              Page {cartPagination.page} of {cartPagination.totalPages} (Total:{" "}
+              {cartPagination.total})
+            </span>
+            <button
+              onClick={handleNextCartPage}
+              disabled={!cartPagination.hasNextPage}
+              className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer"
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

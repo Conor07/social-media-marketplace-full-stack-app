@@ -1,8 +1,11 @@
 import axios from "axios";
-import type { CartItem } from "../types";
+import type { CartItem, PaginatedResponse } from "../types";
 
-export const getCartItems = async (): Promise<CartItem[]> => {
-  const res = await axios.get("/cart");
+export const getCartItems = async (
+  page: number = 1,
+): Promise<PaginatedResponse<CartItem>> => {
+  const res = await axios.get(`/cart?page=${page}`);
+
   return res.data;
 };
 
@@ -14,11 +17,13 @@ export const createCartItem = async (item: CartItem): Promise<CartItem> => {
       price: item.price,
       quantity: item.quantity,
     });
+
     return res.data;
   } catch (err) {
     if (axios.isAxiosError(err) && err.response?.status === 400) {
       throw new Error(err.response.data?.error || "Failed to create cart item");
     }
+
     throw new Error("Failed to create cart item");
   }
 };
@@ -31,11 +36,13 @@ export const updateCartItem = async (item: CartItem): Promise<CartItem> => {
       price: item.price,
       quantity: item.quantity,
     });
+
     return res.data;
   } catch (err) {
     if (axios.isAxiosError(err) && err.response?.status === 400) {
       throw new Error(err.response.data?.error || "Failed to update cart item");
     }
+
     throw new Error("Failed to update cart item");
   }
 };

@@ -34,7 +34,7 @@ export const login = createAsyncThunk<
   { rejectValue: string }
 >("auth/login", async ({ username, password }, { rejectWithValue }) => {
   try {
-    const res = await axios.post("/api/auth/login", { username, password });
+    const res = await axios.post("/auth/login", { username, password });
 
     return res.data;
   } catch (err) {
@@ -52,9 +52,9 @@ export const register = createAsyncThunk<
   { rejectValue: string }
 >("auth/register", async ({ username, password }, { rejectWithValue }) => {
   try {
-    await axios.post("/api/auth/register", { username, password });
+    await axios.post("/auth/register", { username, password });
 
-    const res = await axios.post("/api/auth/login", { username, password });
+    const res = await axios.post("/auth/login", { username, password });
 
     return res.data;
   } catch (err) {
@@ -70,9 +70,11 @@ export const checkAuth = createAsyncThunk(
   "auth/checkAuth",
   async (_, { dispatch }) => {
     const token = localStorage.getItem("token");
+
     if (!token) return;
+
     try {
-      const res = await axios.get("/api/auth/me");
+      const res = await axios.get("/auth/me");
       dispatch(setCredentials({ user: res.data, token }));
     } catch {
       dispatch(logout());

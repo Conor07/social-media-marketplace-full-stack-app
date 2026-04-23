@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 import type { RootState } from "../../app/store";
-import type { ItemToSell } from "../../types";
+import type { ItemToSell, PaginationMeta } from "../../types";
 import {
   getUserItemsToSell,
   getAllAvailableItemsToSell,
@@ -10,29 +10,27 @@ import {
   deleteItemToSell,
 } from "../../api/itemsToSellApi";
 
-export const fetchUserItemsToSellThunk = createAsyncThunk(
-  "itemsToSell/fetchUserItemsToSell",
-  async (_, { rejectWithValue }) => {
-    try {
-      const items = await getUserItemsToSell();
+export const fetchUserItemsToSellThunk = createAsyncThunk<
+  any,
+  number | undefined
+>("itemsToSell/fetchUserItemsToSell", async (page = 1, { rejectWithValue }) => {
+  try {
+    const response = await getUserItemsToSell(page);
+    return response;
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch user items";
 
-      return items;
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : "Failed to fetch user items";
+    return rejectWithValue(message);
+  }
+});
 
-      return rejectWithValue(message);
-    }
-  },
-);
-
-export const fetchItemsToSellThunk = createAsyncThunk(
+export const fetchItemsToSellThunk = createAsyncThunk<any, number | undefined>(
   "itemsToSell/fetchItemsToSell",
-  async (_, { rejectWithValue }) => {
+  async (page = 1, { rejectWithValue }) => {
     try {
-      const items = await getAllAvailableItemsToSell();
-
-      return items;
+      const response = await getAllAvailableItemsToSell(page);
+      return response;
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Failed to fetch items";
@@ -92,6 +90,8 @@ export const deleteItemToSellThunk = createAsyncThunk(
 
 interface ItemsToSellState {
   itemsToSell: ItemToSell[];
+  userItemsPagination: PaginationMeta;
+  availableItemsPagination: PaginationMeta;
   fetchStatus: "idle" | "loading" | "succeeded" | "failed";
   fetchError: string | null;
   createStatus: "idle" | "loading" | "succeeded" | "failed";
@@ -102,8 +102,19 @@ interface ItemsToSellState {
   deleteError: string | null;
 }
 
+const initialPagination: PaginationMeta = {
+  page: 1,
+  limit: 5,
+  total: 0,
+  totalPages: 0,
+  hasNextPage: false,
+  hasPreviousPage: false,
+};
+
 const initialState: ItemsToSellState = {
   itemsToSell: [],
+  userItemsPagination: initialPagination,
+  availableItemsPagination: initialPagination,
   fetchStatus: "idle",
   fetchError: null,
   createStatus: "idle",
@@ -117,7 +128,14 @@ const initialState: ItemsToSellState = {
 export const itemsSlice = createSlice({
   name: "itemsToSell",
   initialState,
-  reducers: {},
+  reducers: {
+    setUserItemsPage: (state, action: PayloadAction<number>) => {
+      state.userItemsPagination.page = action.payload;
+    },
+    setAvailableItemsPage: (state, action: PayloadAction<number>) => {
+      state.availableItemsPagination.page = action.payload;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchUserItemsToSellThunk.pending, (state) => {
@@ -127,10 +145,12 @@ export const itemsSlice = createSlice({
       })
       .addCase(
         fetchUserItemsToSellThunk.fulfilled,
-        (state, action: PayloadAction<ItemToSell[]>) => {
+        (state, action: PayloadAction<any>) => {
           state.fetchStatus = "succeeded";
 
-          state.itemsToSell = action.payload;
+          state.itemsToSell = action.payload.data;
+
+          state.userItemsPagination = action.payload.pagination;
         },
       )
       .addCase(fetchUserItemsToSellThunk.rejected, (state, action) => {
@@ -145,10 +165,12 @@ export const itemsSlice = createSlice({
       })
       .addCase(
         fetchItemsToSellThunk.fulfilled,
-        (state, action: PayloadAction<ItemToSell[]>) => {
+        (state, action: PayloadAction<any>) => {
           state.fetchStatus = "succeeded";
 
-          state.itemsToSell = action.payload;
+          state.itemsToSell = action.payload.data;
+
+          state.availableItemsPagination = action.payload.pagination;
         },
       )
       .addCase(fetchItemsToSellThunk.rejected, (state, action) => {
@@ -220,5 +242,7 @@ export const itemsSlice = createSlice({
 });
 
 export const selectItemsToSell = (state: RootState) => state.itemsToSell;
+
+export const { setUserItemsPage, setAvailableItemsPage } = itemsSlice.actions;
 
 export default itemsSlice.reducer;

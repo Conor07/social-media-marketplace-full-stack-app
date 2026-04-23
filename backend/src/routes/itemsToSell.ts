@@ -35,7 +35,31 @@ router.get(
   "/",
   authenticateToken,
   (req: AuthenticatedRequest, res: Response) => {
-    res.json(ITEMS.filter((item) => item.userId === req.user!.userId));
+    const userItems = ITEMS.filter((item) => item.userId === req.user!.userId);
+
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+
+    const limit = 5;
+
+    const start = (page - 1) * limit;
+
+    const paginatedItems = userItems.slice(start, start + limit);
+
+    const total = userItems.length;
+
+    const totalPages = Math.ceil(total / limit);
+
+    res.json({
+      data: paginatedItems,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    });
   },
 );
 
@@ -43,7 +67,27 @@ router.get(
   "/available/all",
   authenticateToken,
   (req: AuthenticatedRequest, res: Response) => {
-    res.json(ITEMS.filter((item) => item.userId !== req.user!.userId));
+    const availableItems = ITEMS.filter(
+      (item) => item.userId !== req.user!.userId,
+    );
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = 5;
+    const start = (page - 1) * limit;
+    const paginatedItems = availableItems.slice(start, start + limit);
+    const total = availableItems.length;
+    const totalPages = Math.ceil(total / limit);
+
+    res.json({
+      data: paginatedItems,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    });
   },
 );
 

@@ -12,8 +12,12 @@ import type { ItemToSell } from "../types";
 
 type ItemsToSellProps = {};
 
+const ITEMS_PER_PAGE = 5;
+
 const ItemsToSell: React.FC<ItemsToSellProps> = ({}) => {
   const dispatch = useAppDispatch();
+
+  const [currentPage, setCurrentPage] = useState(1);
 
   const {
     itemsToSell,
@@ -75,6 +79,7 @@ const ItemsToSell: React.FC<ItemsToSellProps> = ({}) => {
 
   const handleSubmitUpdateItem = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     dispatch(
       updateItemToSellThunk({
         id: Number(itemForm.id),
@@ -95,15 +100,41 @@ const ItemsToSell: React.FC<ItemsToSellProps> = ({}) => {
     });
   };
 
-  const handleDeleteItem = (id: number) => dispatch(deleteItemToSellThunk(id));
+  const handleDeleteItem = (id: number) => {
+    dispatch(deleteItemToSellThunk(id)).then(() => {
+      dispatch(fetchUserItemsToSellThunk());
+    });
+  };
+
+  const { userItemsPagination } = useSelector(selectItemsToSell);
+
+  const handlePreviousPage = () => {
+    if (userItemsPagination.hasPreviousPage) {
+      const newPage = userItemsPagination.page - 1;
+
+      dispatch(fetchUserItemsToSellThunk(newPage));
+
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (userItemsPagination.hasNextPage) {
+      const newPage = userItemsPagination.page + 1;
+
+      dispatch(fetchUserItemsToSellThunk(newPage));
+
+      setCurrentPage(newPage);
+    }
+  };
 
   return (
-    <div className="mb-4">
-      <h2>Items to Sell: </h2>
+    <div className="mb-4 flex flex-col items-center p-4 min-h-screen bg-gray-100 gap-4">
+      <h2 className="text-2xl">Items to Sell:</h2>
 
       <form
         onSubmit={itemForm.id ? handleSubmitUpdateItem : handleAddItem}
-        style={{ marginBottom: 8 }}
+        className="flex flex-col gap-4 border-gray-400 border rounded p-4 w-full max-w-md bg-white"
       >
         <input
           name="name"
@@ -111,6 +142,7 @@ const ItemsToSell: React.FC<ItemsToSellProps> = ({}) => {
           value={itemForm.name}
           onChange={handleItemChange}
           required
+          className="m-4 p-2 border border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
         />
 
         <input
@@ -119,6 +151,7 @@ const ItemsToSell: React.FC<ItemsToSellProps> = ({}) => {
           value={itemForm.description}
           onChange={handleItemChange}
           required
+          className="m-4 p-2 border border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
         />
 
         <input
@@ -128,6 +161,7 @@ const ItemsToSell: React.FC<ItemsToSellProps> = ({}) => {
           value={itemForm.price}
           onChange={handleItemChange}
           required
+          className="m-4 p-2 border border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
         />
 
         <input
@@ -137,14 +171,21 @@ const ItemsToSell: React.FC<ItemsToSellProps> = ({}) => {
           value={itemForm.quantity}
           onChange={handleItemChange}
           required
+          className="m-4 p-2 border border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
         />
 
         {itemForm.id ? (
           <>
-            <button type="submit">Update Item</button>
+            <button
+              type="submit"
+              className="m-4 p-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            >
+              Update Item
+            </button>
 
             <button
               type="button"
+              className="m-4 p-2 bg-gray-500 text-white rounded hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 cursor-pointer"
               onClick={() =>
                 setItemForm({
                   id: 0,
@@ -160,7 +201,12 @@ const ItemsToSell: React.FC<ItemsToSellProps> = ({}) => {
             </button>
           </>
         ) : (
-          <button type="submit">Add Item</button>
+          <button
+            type="submit"
+            className="m-4 p-2 bg-green-500 text-white rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 cursor-pointer"
+          >
+            Add Item
+          </button>
         )}
       </form>
 
@@ -175,9 +221,13 @@ const ItemsToSell: React.FC<ItemsToSellProps> = ({}) => {
       )}
 
       {itemsFetchStatus === "succeeded" &&
+        Array.isArray(itemsToSell) &&
         itemsToSell.map((item) => (
-          <div key={item.id}>
-            <h3>{item.name}</h3>
+          <div
+            key={item.id}
+            className="flex flex-col p-4 w-full border border-gray-400 rounded bg-white"
+          >
+            <h3 className="text-xl">{item.name}</h3>
 
             <p>{item.description}</p>
 
@@ -185,11 +235,46 @@ const ItemsToSell: React.FC<ItemsToSellProps> = ({}) => {
 
             <p>Quantity: {item.quantity}</p>
 
-            <button onClick={() => handleUpdateItem(item)}>Edit</button>
+            <div className="flex items-center gap-4 mt-2">
+              <button
+                onClick={() => handleUpdateItem(item)}
+                className="h-full m-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              >
+                Edit
+              </button>
 
-            <button onClick={() => handleDeleteItem(item.id)}>Delete</button>
+              <button
+                onClick={() => handleDeleteItem(item.id)}
+                className="h-full m-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 cursor-pointer"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         ))}
+
+      {itemsFetchStatus === "succeeded" && itemsToSell.length > 0 && (
+        <div className="mt-8 flex gap-4 justify-center items-center">
+          <button
+            onClick={handlePreviousPage}
+            disabled={!userItemsPagination.hasPreviousPage}
+            className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer"
+          >
+            Previous
+          </button>
+          <span className="text-gray-700">
+            Page {userItemsPagination.page} of {userItemsPagination.totalPages}{" "}
+            (Total: {userItemsPagination.total})
+          </span>
+          <button
+            onClick={handleNextPage}
+            disabled={!userItemsPagination.hasNextPage}
+            className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 };

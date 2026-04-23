@@ -43,11 +43,12 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode = "login" }) => {
   };
 
   return (
-    <div className="auth-form">
-      <h2>{isRegister ? "Register" : "Login"}</h2>
+    <div className="flex flex-col items-center p-4 min-h-screen bg-gray-100">
+      <h2 className="text-2xl">{isRegister ? "Register" : "Login"}</h2>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <input
+          className="m-4 p-2 border border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
           type="text"
           placeholder="Username"
           value={username}
@@ -56,6 +57,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode = "login" }) => {
         />
 
         <input
+          className="m-4 p-2 border border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
           type="password"
           placeholder="Password"
           value={password}
@@ -63,12 +65,23 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode = "login" }) => {
           required
         />
 
-        <button type="submit" disabled={status === "loading"}>
+        <button
+          type="submit"
+          className="m-4 p-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:bg-gray-400 disabled:cursor-not-allowed"
+          disabled={status === "loading"}
+        >
           {isRegister ? "Register" : "Login"}
         </button>
       </form>
 
-      <button onClick={() => setIsRegister((v) => !v)}>
+      <button
+        onClick={() => {
+          setIsRegister((v) => !v);
+          setUsername("");
+          setPassword("");
+        }}
+        className="m-4 p-2 text-blue-500 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:bg-gray-400 disabled:cursor-not-allowed"
+      >
         {isRegister
           ? "Already have an account? Login"
           : "Don't have an account? Register"}

@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 import type { RootState } from "../../app/store";
-import type { Post } from "../../types";
+import type { Post, PaginationMeta } from "../../types";
 import {
   getPosts,
   createPost,
@@ -10,13 +10,12 @@ import {
   likePost,
 } from "../../api/postsApi";
 
-export const fetchPostsThunk = createAsyncThunk(
+export const fetchPostsThunk = createAsyncThunk<any, number | undefined>(
   "posts/fetchPosts",
-  async (_, { rejectWithValue }) => {
+  async (page = 1, { rejectWithValue }) => {
     try {
-      const posts = await getPosts();
-
-      return posts;
+      const response = await getPosts(page);
+      return response;
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Failed to fetch posts";
@@ -92,6 +91,7 @@ export const likePostThunk = createAsyncThunk(
 
 interface PostsState {
   posts: Post[];
+  pagination: PaginationMeta;
   fetchStatus: "idle" | "loading" | "succeeded" | "failed";
   fetchError: string | null;
   createStatus: "idle" | "loading" | "succeeded" | "failed";
@@ -102,8 +102,18 @@ interface PostsState {
   deleteError: string | null;
 }
 
+const initialPagination: PaginationMeta = {
+  page: 1,
+  limit: 5,
+  total: 0,
+  totalPages: 0,
+  hasNextPage: false,
+  hasPreviousPage: false,
+};
+
 const initialState: PostsState = {
   posts: [],
+  pagination: initialPagination,
   fetchStatus: "idle",
   fetchError: null,
   createStatus: "idle",
@@ -117,7 +127,11 @@ const initialState: PostsState = {
 export const postsSlice = createSlice({
   name: "posts",
   initialState,
-  reducers: {},
+  reducers: {
+    setCurrentPage: (state, action: PayloadAction<number>) => {
+      state.pagination.page = action.payload;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchPostsThunk.pending, (state) => {
@@ -127,10 +141,12 @@ export const postsSlice = createSlice({
       })
       .addCase(
         fetchPostsThunk.fulfilled,
-        (state, action: PayloadAction<Post[]>) => {
+        (state, action: PayloadAction<any>) => {
           state.fetchStatus = "succeeded";
 
-          state.posts = action.payload;
+          state.posts = action.payload.data;
+
+          state.pagination = action.payload.pagination;
         },
       )
       .addCase(fetchPostsThunk.rejected, (state, action) => {
@@ -218,5 +234,7 @@ export const postsSlice = createSlice({
 });
 
 export const selectPosts = (state: RootState) => state.posts;
+
+export const { setCurrentPage } = postsSlice.actions;
 
 export default postsSlice.reducer;
